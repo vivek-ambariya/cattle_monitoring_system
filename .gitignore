@@ -5,4 +5,8 @@ client/node_modules/
 *.log
 dist/
 build/
+*.csv
+*.pkg
+*.dmg
+*.zip
 
