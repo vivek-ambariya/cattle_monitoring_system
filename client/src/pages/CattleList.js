@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../config/api';
 import { FiUsers, FiPlus, FiEdit, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import './CattleList.css';
 
@@ -7,6 +7,8 @@ const CattleList = () => {
   const [cattle, setCattle] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     tagId: '',
     name: '',
@@ -23,7 +25,7 @@ const CattleList = () => {
 
   const fetchCattle = async () => {
     try {
-      const response = await axios.get('/api/cattle');
+      const response = await api.get('/api/cattle');
       setCattle(response.data);
       setLoading(false);
     } catch (error) {
@@ -32,35 +34,65 @@ const CattleList = () => {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      tagId: '',
+      name: '',
+      breed: '',
+      age: '',
+      weight: '',
+      healthStatus: 'healthy',
+      location: 'pasture'
+    });
+    setEditingId(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/api/cattle', formData);
+      const payload = {
+        ...formData,
+        age: Number(formData.age),
+        weight: Number(formData.weight)
+      };
+
+      if (editingId) {
+        await api.put(`/api/cattle/${editingId}`, payload);
+      } else {
+        await api.post('/api/cattle', payload);
+      }
+
       setShowAddForm(false);
-      setFormData({
-        tagId: '',
-        name: '',
-        breed: '',
-        age: '',
-        weight: '',
-        healthStatus: 'healthy',
-        location: 'pasture'
-      });
+      resetForm();
       fetchCattle();
     } catch (error) {
-      alert('Error adding cattle: ' + (error.response?.data?.error || error.message));
+      alert('Error saving cattle: ' + (error.response?.data?.error || error.message));
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this cattle record?')) {
       try {
-        await axios.delete(`/api/cattle/${id}`);
+        await api.delete(`/api/cattle/${id}`);
         fetchCattle();
       } catch (error) {
         alert('Error deleting cattle: ' + (error.response?.data?.error || error.message));
       }
     }
+  };
+
+  const handleEdit = (item) => {
+    setFormData({
+      tagId: item.tagId,
+      name: item.name,
+      breed: item.breed,
+      age: item.age,
+      weight: item.weight,
+      healthStatus: item.healthStatus,
+      location: item.location || 'pasture'
+    });
+    setEditingId(item._id);
+    setShowAddForm(true);
   };
 
   const getHealthStatusColor = (status) => {
@@ -73,6 +105,17 @@ const CattleList = () => {
     return colors[status] || '#6b7280';
   };
 
+  const filteredCattle = cattle.filter((item) => {
+    if (!searchTerm) return true;
+    const query = searchTerm.toLowerCase();
+    return (
+      item.name?.toLowerCase().includes(query) ||
+      item.tagId?.toLowerCase().includes(query) ||
+      item.breed?.toLowerCase().includes(query) ||
+      item.location?.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="cattle-list">
       <div className="page-header">
@@ -81,18 +124,30 @@ const CattleList = () => {
           <p className="subtitle">Manage your cattle inventory</p>
         </div>
         <div className="header-actions">
+          <input
+            type="text"
+            placeholder="Search by name, tag, breed..."
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
           <button className="btn-secondary" onClick={fetchCattle}>
             <FiRefreshCw /> Refresh
           </button>
-          <button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
-            <FiPlus /> Add Cattle
+          <button className="btn-primary" onClick={() => {
+            setShowAddForm(!showAddForm);
+            if (showAddForm) {
+              resetForm();
+            }
+          }}>
+            <FiPlus /> {showAddForm ? 'Close Form' : 'Add Cattle'}
           </button>
         </div>
       </div>
 
       {showAddForm && (
         <div className="add-form-card">
-          <h3>Add New Cattle</h3>
+          <h3>{editingId ? 'Edit Cattle' : 'Add New Cattle'}</h3>
           <form onSubmit={handleSubmit}>
             <div className="form-row">
               <div className="form-group">
@@ -172,10 +227,15 @@ const CattleList = () => {
               </div>
             </div>
             <div className="form-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowAddForm(false)}>
+              <button type="button" className="btn-secondary" onClick={() => {
+                setShowAddForm(false);
+                resetForm();
+              }}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary">Add Cattle</button>
+              <button type="submit" className="btn-primary">
+                {editingId ? 'Update Cattle' : 'Add Cattle'}
+              </button>
             </div>
           </form>
         </div>
@@ -185,8 +245,8 @@ const CattleList = () => {
         <div className="loading">Loading cattle data...</div>
       ) : (
         <div className="cattle-grid">
-          {cattle.length > 0 ? (
-            cattle.map((item) => (
+          {filteredCattle.length > 0 ? (
+            filteredCattle.map((item) => (
               <div 
                 key={item._id} 
                 className={`cattle-card ${item.activity === 'grazing' ? 'grazing' : ''}`}
@@ -230,7 +290,7 @@ const CattleList = () => {
                   </div>
                 </div>
                 <div className="cattle-actions">
-                  <button className="action-btn edit" onClick={() => alert('Edit functionality coming soon')}>
+                  <button className="action-btn edit" onClick={() => handleEdit(item)}>
                     <FiEdit /> Edit
                   </button>
                   <button className="action-btn delete" onClick={() => handleDelete(item._id)}>

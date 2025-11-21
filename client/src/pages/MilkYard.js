@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FiDroplet, FiPlus, FiFilter, FiRefreshCw, FiDownload } from 'react-icons/fi';
+import api from '../config/api';
+import { FiDroplet, FiPlus, FiRefreshCw, FiDownload, FiEdit } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './MilkYard.css';
 
@@ -9,8 +9,16 @@ const MilkYard = () => {
   const [dailySummary, setDailySummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editRecord, setEditRecord] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [cattleOptions, setCattleOptions] = useState([]);
   const [formData, setFormData] = useState({
     tagId: '',
+    quantity: '',
+    quality: 'good',
+    temperature: '37'
+  });
+  const [editFormData, setEditFormData] = useState({
     quantity: '',
     quality: 'good',
     temperature: '37'
@@ -19,6 +27,7 @@ const MilkYard = () => {
   useEffect(() => {
     fetchMilkRecords();
     fetchDailySummary();
+    fetchCattleOptions();
     const interval = setInterval(() => {
       fetchMilkRecords();
       fetchDailySummary();
@@ -28,7 +37,7 @@ const MilkYard = () => {
 
   const fetchMilkRecords = async () => {
     try {
-      const response = await axios.get('/api/milk');
+      const response = await api.get('/api/milk');
       setMilkRecords(response.data);
       setLoading(false);
     } catch (error) {
@@ -39,17 +48,30 @@ const MilkYard = () => {
 
   const fetchDailySummary = async () => {
     try {
-      const response = await axios.get('/api/milk/summary/daily');
+      const response = await api.get('/api/milk/summary/daily');
       setDailySummary(response.data);
     } catch (error) {
       console.error('Error fetching daily summary:', error);
     }
   };
 
+  const fetchCattleOptions = async () => {
+    try {
+      const response = await api.get('/api/cattle');
+      setCattleOptions(response.data);
+    } catch (error) {
+      console.error('Error fetching cattle for suggestions:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/api/milk', formData);
+      await api.post('/api/milk', {
+        ...formData,
+        quantity: Number(formData.quantity),
+        temperature: Number(formData.temperature)
+      });
       setShowAddForm(false);
       setFormData({ tagId: '', quantity: '', quality: 'good', temperature: '37' });
       fetchMilkRecords();
@@ -92,6 +114,41 @@ const MilkYard = () => {
     document.body.removeChild(link);
   };
 
+  const filteredRecords = milkRecords.filter((record) => {
+    if (!searchTerm) return true;
+    const query = searchTerm.toLowerCase();
+    return (
+      record.tagId?.toLowerCase().includes(query) ||
+      record.cattleId?.name?.toLowerCase().includes(query)
+    );
+  });
+
+  const handleOpenEdit = (record) => {
+    setEditRecord(record);
+    setEditFormData({
+      quantity: record.quantity,
+      quality: record.quality,
+      temperature: record.temperature
+    });
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editRecord) return;
+    try {
+      await api.put(`/api/milk/${editRecord._id}`, {
+        quantity: Number(editFormData.quantity),
+        quality: editFormData.quality,
+        temperature: Number(editFormData.temperature)
+      });
+      setEditRecord(null);
+      fetchMilkRecords();
+      fetchDailySummary();
+    } catch (error) {
+      alert('Error updating milk record: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
   return (
     <div className="milk-yard">
       <div className="page-header">
@@ -100,6 +157,13 @@ const MilkYard = () => {
           <p className="subtitle">Track and manage milk production</p>
         </div>
         <div className="header-actions">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search by tag or name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
           <button className="btn-secondary" onClick={fetchMilkRecords}>
             <FiRefreshCw /> Refresh
           </button>
@@ -121,10 +185,18 @@ const MilkYard = () => {
                 <label>Tag ID</label>
                 <input
                   type="text"
+                  list="tag-options"
                   value={formData.tagId}
                   onChange={(e) => setFormData({ ...formData, tagId: e.target.value })}
                   required
                 />
+                <datalist id="tag-options">
+                  {cattleOptions.map((cattle) => (
+                    <option key={cattle._id} value={cattle.tagId}>
+                      {cattle.name}
+                    </option>
+                  ))}
+                </datalist>
               </div>
               <div className="form-group">
                 <label>Quantity (Liters)</label>
@@ -214,6 +286,56 @@ const MilkYard = () => {
 
       <div className="records-table-card">
         <h3>Recent Records</h3>
+        {editRecord && (
+          <div className="add-form-card">
+            <h3>Edit Record (#{editRecord.tagId})</h3>
+            <form onSubmit={handleEditSubmit}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Quantity (Liters)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editFormData.quantity}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, quantity: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Quality</label>
+                  <select
+                    value={editFormData.quality}
+                    onChange={(e) => setEditFormData({ ...editFormData, quality: e.target.value })}
+                  >
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Temperature (°C)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editFormData.temperature}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, temperature: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="btn-secondary" onClick={() => setEditRecord(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        )}
         {loading ? (
           <div className="loading">Loading records...</div>
         ) : (
@@ -227,11 +349,12 @@ const MilkYard = () => {
                   <th>Quantity (L)</th>
                   <th>Quality</th>
                   <th>Temperature</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {milkRecords.length > 0 ? (
-                  milkRecords.slice(0, 20).map((record) => (
+                {filteredRecords.length > 0 ? (
+                  filteredRecords.slice(0, 20).map((record) => (
                     <tr key={record._id}>
                       <td>{new Date(record.timestamp).toLocaleString()}</td>
                       <td>{record.tagId}</td>
@@ -243,11 +366,16 @@ const MilkYard = () => {
                         </span>
                       </td>
                       <td>{record.temperature}°C</td>
+                      <td>
+                        <button className="action-btn edit" onClick={() => handleOpenEdit(record)}>
+                          <FiEdit /> Edit
+                        </button>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="no-data">No records found</td>
+                    <td colSpan="7" className="no-data">No records found</td>
                   </tr>
                 )}
               </tbody>

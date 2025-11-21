@@ -87,6 +87,36 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Update milk record
+router.put('/:id', async (req, res) => {
+  try {
+    const { quantity, quality, temperature } = req.body;
+    const updates = {};
+
+    if (quantity !== undefined) updates.quantity = quantity;
+    if (quality) updates.quality = quality;
+    if (temperature !== undefined) updates.temperature = temperature;
+
+    const updatedRecord = await MilkRecord.update(req.params.id, updates);
+    if (!updatedRecord) {
+      return res.status(404).json({ error: 'Milk record not found' });
+    }
+
+    res.json({
+      _id: updatedRecord.id,
+      cattleId: updatedRecord.cattleId,
+      tagId: updatedRecord.tagId,
+      quantity: parseFloat(updatedRecord.quantity),
+      quality: updatedRecord.quality,
+      temperature: parseFloat(updatedRecord.temperature),
+      timestamp: updatedRecord.timestamp,
+      location: updatedRecord.location
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Get daily milk production summary
 router.get('/summary/daily', async (req, res) => {
   try {

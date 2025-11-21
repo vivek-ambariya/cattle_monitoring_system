@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../config/api';
 import { 
   FiUsers, 
   FiActivity, 
@@ -24,7 +24,7 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await axios.get('/api/dashboard/stats');
+      const response = await api.get('/api/dashboard/stats');
       setStats(response.data);
       setRecentActivity(response.data.recentCattle || []);
       setLoading(false);

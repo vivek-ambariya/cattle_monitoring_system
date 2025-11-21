@@ -81,6 +81,62 @@ class MilkRecord {
     );
     return rows;
   }
+
+  static async findById(id) {
+    const [rows] = await pool.execute(
+      `SELECT mr.*, c.name, c.breed 
+       FROM milk_records mr
+       LEFT JOIN cattle c ON mr.cattleId = c.id
+       WHERE mr.id = ?`,
+      [id]
+    );
+    if (!rows.length) {
+      return null;
+    }
+
+    const row = rows[0];
+    return {
+      ...row,
+      cattleId: row.cattleId ? {
+        _id: row.cattleId,
+        tagId: row.tagId,
+        name: row.name,
+        breed: row.breed
+      } : null
+    };
+  }
+
+  static async update(id, data) {
+    const fields = [];
+    const values = [];
+    const allowedFields = {
+      quantity: 'quantity',
+      quality: 'quality',
+      temperature: 'temperature',
+      location: 'location',
+      timestamp: 'timestamp'
+    };
+
+    Object.keys(data).forEach((key) => {
+      if (allowedFields[key] && data[key] !== undefined) {
+        fields.push(`${allowedFields[key]} = ?`);
+        values.push(data[key]);
+      }
+    });
+
+    if (fields.length === 0) {
+      return this.findById(id);
+    }
+
+    values.push(id);
+
+    await pool.execute(
+      `UPDATE milk_records SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    return await this.findById(id);
+  }
 }
 
 module.exports = MilkRecord;

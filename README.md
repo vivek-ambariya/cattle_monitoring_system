@@ -202,6 +202,16 @@ DB_NAME=cattle_monitoring
 NODE_ENV=development
 ```
 
+### Frontend Environment Variables
+
+When running the React app separately or deploying to Vercel, create a `.env` file inside the `client/` folder (or add the variable in Vercel → Project Settings → Environment Variables):
+
+```env
+REACT_APP_API_URL=https://your-backend-domain.com
+```
+
+> For local development you can set `REACT_APP_API_URL=http://localhost:5001`. Vercel should point to your hosted backend URL.
+
 **Note:** If your MySQL has a password, update `DB_PASSWORD` in the `.env` file.
 
 ### 5. (Optional) Seed Sample Data

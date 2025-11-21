@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../config/api';
 import { FiActivity, FiAlertCircle, FiHeart, FiThermometer, FiRefreshCw, FiDownload } from 'react-icons/fi';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './HealthMonitoring.css';
@@ -18,8 +18,8 @@ const HealthMonitoring = () => {
   const fetchHealthData = async () => {
     try {
       const [summaryRes, alertsRes] = await Promise.all([
-        axios.get('/api/health/summary'),
-        axios.get('/api/health/alerts')
+        api.get('/api/health/summary'),
+        api.get('/api/health/alerts')
       ]);
       setHealthSummary(summaryRes.data);
       setAlerts(alertsRes.data);
@@ -47,7 +47,7 @@ const HealthMonitoring = () => {
   const exportToCSV = async () => {
     try {
       // Fetch all cattle data for export
-      const cattleResponse = await axios.get('/api/cattle');
+      const cattleResponse = await api.get('/api/cattle');
       const allCattle = cattleResponse.data;
 
       const headers = ['Tag ID', 'Name', 'Breed', 'Health Status', 'Temperature (°C)', 'Heart Rate (bpm)', 'Activity', 'Location', 'AI Health Risk', 'AI Behavior Pattern'];

@@ -5,8 +5,6 @@ import {
   FiDroplet, 
   FiUsers, 
   FiActivity, 
-  FiMenu, 
-  FiX,
   FiChevronLeft,
   FiChevronRight
 } from 'react-icons/fi';
